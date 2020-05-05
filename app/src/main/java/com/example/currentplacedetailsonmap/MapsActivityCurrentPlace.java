@@ -1,12 +1,13 @@
 package com.example.currentplacedetailsonmap;
 
 import android.app.Activity;
-import android.content.DialogInterface;
-import android.content.Intent;
+import android.bluetooth.BluetoothAdapter;
+import android.content.*;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 
+import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -14,6 +15,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -39,9 +41,11 @@ import com.google.android.libraries.places.api.model.PlaceLikelihood;
 import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest;
 import com.google.android.libraries.places.api.net.FindCurrentPlaceResponse;
 import com.google.android.libraries.places.api.net.PlacesClient;
+import com.google.android.material.snackbar.Snackbar;
 
-import java.util.Arrays;
-import java.util.List;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.*;
 
 /**
  * An activity that displays a map showing the place at the device's current location.
@@ -86,6 +90,13 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     private List[] mLikelyPlaceAttributions;
     private LatLng[] mLikelyPlaceLatLngs;
 
+    private String mPlaceName;
+    private String mPlaceAddress;
+    private List<String> mPlaceAttributions;
+    private LatLng mPlaceLatLng;
+    private String prevPlaceName;
+
+
     ////////////////////////////////////////////////////////////////////////////////
     //////////// Important Values for your localization and bluetooth //////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -96,7 +107,11 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
 
     // New Bluetooth Devices Number
     private int btDevicesCount;
+    private int crowdThreshold = 1;
     ////////////////////////////////////////////////////////////////////////////////
+    Handler handler;
+    HashMap<String, TripModel> trips;
+    String currentTripID;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,8 +137,54 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        IntentFilter filter = new IntentFilter("ServiceBroadcast");
+        registerReceiver(receiver, filter);
+
+        trips = new HashMap<>();
+        currentTripID = null;
+        mPlaceName = null;
+        mPlaceAddress = null;
+        mPlaceAttributions = new ArrayList<>();
+        mPlaceLatLng = null;
+        prevPlaceName = null;
+
+    }
+    private void writeToFile(String data,Context context) {
+        try {
+            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(context.openFileOutput("readings.txt", Context.MODE_PRIVATE));
+            outputStreamWriter.write(data+"\n");
+            outputStreamWriter.close();
+        }
+        catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
+        }
+    }
+    @Override
+    protected  void onResume()
+    {
+        super.onResume();
+        IntentFilter filter = new IntentFilter("ServiceBroadcast");
+        this.registerReceiver(receiver, filter);
+    }
+    @Override
+    protected void onPause()
+    {
+        super.onPause();
+        if(receiver !=  null)
+            this.unregisterReceiver(receiver);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        // Unregister broadcast listeners
+        if(receiver !=  null)
+            this.unregisterReceiver(receiver);
+        if(handler != null)
+            handler.removeCallbacks(serviceRunnable);
+    }
     /**
      * Saves the state of the map when the activity is paused.
      */
@@ -157,18 +218,102 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.option_get_place) {
-            showCurrentPlace();
+            //showCurrentPlace();
+            if(currentTripID != null)
+            {
+                trips.get(currentTripID).setEndTime(new Date());
+                // TODO calculate score;
+                currentTripID = null;
+                handler.removeCallbacks(serviceRunnable);
+                Toast.makeText(this, "Trip Stopped", Toast.LENGTH_SHORT).show();
+            }
+            else
+            {
+                Toast.makeText(this, "No Trips Active", Toast.LENGTH_SHORT).show();
+            }
+
         } else if (item.getItemId() == R.id.nearby_devices) {
+            BluetoothAdapter mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+            if (!mBtAdapter.isEnabled()) {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            }
+            else
+            {
+                String tripID = UUID.randomUUID().toString();
+                TripModel currentTrip = new TripModel();
+                currentTrip.setTripId(tripID);
+                currentTrip.setStartTime(new Date());
+                trips.put(tripID, currentTrip);
+                currentTripID = tripID;
+                handler = new Handler();
+                // Define the code block to be executed
+                // Start the initial runnable task by posting through the handler
+                handler.post(serviceRunnable);
+            }
             // Launch the DeviceListActivity to see devices and do scan
-            Intent serverIntent = new Intent(this, DeviceListActivity.class);
-            startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_SECURE);
+
+//            startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_SECURE);
         }
         return true;
     }
-
+    BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "onReceive()");
+            Bundle bundle = intent.getExtras();
+            if (bundle != null) {
+                btDevicesCount = bundle.getInt(BluetoothService.EXTRA_DEVICE_COUNT);
+                if(btDevicesCount > crowdThreshold)
+                {
+                    // add marker
+                    if(prevPlaceName == null || !prevPlaceName.equals(mPlaceName))
+                    {
+                        markCurrentPlace();
+                    }
+                }
+                View mapsView = findViewById(R.id.map);
+                Snackbar.make(mapsView, Integer.toString(btDevicesCount),
+                        Snackbar.LENGTH_SHORT)
+                        .show();
+            }
+        }
+    };
+    Runnable serviceRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // Do something here on the main thread
+            Log.d("Handlers", "Called on main thread");
+            // Repeat this the same runnable code block again another 2 seconds
+            // 'this' is referencing the Runnable object
+            Intent serverIntent = new Intent(MapsActivityCurrentPlace.this, BluetoothService.class);
+            startService(serverIntent);
+            handler.postDelayed(this, 60000);
+        }
+    };
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        Log.d(TAG, "onActivityResult()");
         switch (requestCode) {
+            case REQUEST_ENABLE_BT:
+                if(resultCode == Activity.RESULT_OK)
+                {
+                    String tripID = UUID.randomUUID().toString();
+                    TripModel currentTrip = new TripModel();
+                    currentTrip.setTripId(tripID);
+                    currentTrip.setStartTime(new Date());
+                    trips.put(tripID, currentTrip);
+                    currentTripID = tripID;
+                    handler = new Handler();
+                    // Define the code block to be executed
+                    // Start the initial runnable task by posting through the handler
+                    handler.post(serviceRunnable);
+                }
+                else
+                {
+                    Toast.makeText(this, "Bluetooth is required for this task", Toast.LENGTH_SHORT).show();
+                }
+                break;
             case REQUEST_CONNECT_DEVICE_SECURE:
                 // When DeviceListActivity returns with a device to connect
                 if (resultCode == Activity.RESULT_OK) {
@@ -179,6 +324,14 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                     btDevicesCount = data.getExtras()
                             .getInt(DeviceListActivity.EXTRA_DEVICE_COUNT);
                     Log.d(TAG, "Device number:" + btDevicesCount);
+                    View mapsView = findViewById(R.id.map);
+                    mapsView.post(new Runnable() {
+                        public void run() {
+                            Snackbar.make(findViewById(R.id.map), Integer.toString(btDevicesCount),
+                                    Snackbar.LENGTH_SHORT)
+                                    .show();
+                        }
+                    });
                     // You can change the address to the number of certain type of devices, or
                     // other variables you want to use. Remember to change the corresponding
                     // name at DeviceListActivity.java.
@@ -331,7 +484,7 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
      * Prompts the user to select the current place from a list of likely places, and shows the
      * current place on the map - provided the user has granted location permission.
      */
-    private void showCurrentPlace() {
+    private void markCurrentPlace() {
         if (mMap == null) {
             return;
         }
@@ -356,36 +509,99 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                         FindCurrentPlaceResponse likelyPlaces = task.getResult();
 
                         // Set the count, handling cases where less than 5 entries are returned.
-                        int count;
-                        if (likelyPlaces.getPlaceLikelihoods().size() < M_MAX_ENTRIES) {
-                            count = likelyPlaces.getPlaceLikelihoods().size();
-                        } else {
-                            count = M_MAX_ENTRIES;
-                        }
-
-                        int i = 0;
-                        mLikelyPlaceNames = new String[count];
-                        mLikelyPlaceAddresses = new String[count];
-                        mLikelyPlaceAttributions = new List[count];
-                        mLikelyPlaceLatLngs = new LatLng[count];
-
-                        for (PlaceLikelihood placeLikelihood : likelyPlaces.getPlaceLikelihoods()) {
-                            // Build a list of likely places to show the user.
-                            mLikelyPlaceNames[i] = placeLikelihood.getPlace().getName();
-                            mLikelyPlaceAddresses[i] = placeLikelihood.getPlace().getAddress();
-                            mLikelyPlaceAttributions[i] = placeLikelihood.getPlace()
-                                    .getAttributions();
-                            mLikelyPlaceLatLngs[i] = placeLikelihood.getPlace().getLatLng();
-
-                            i++;
-                            if (i > (count - 1)) {
-                                break;
+//                        int count;
+//                        if (likelyPlaces.getPlaceLikelihoods().size() < M_MAX_ENTRIES) {
+//                            count = likelyPlaces.getPlaceLikelihoods().size();
+//                        } else {
+//                            count = M_MAX_ENTRIES;
+//                        }
+                        if(likelyPlaces.getPlaceLikelihoods().size() > 0)
+                        {
+                            double maxLikelihoodVal = 0.0;
+                            PlaceLikelihood maxLikelihood = null;
+                            for(PlaceLikelihood placeLikelihood : likelyPlaces.getPlaceLikelihoods())
+                            {
+                                if(placeLikelihood.getLikelihood() > maxLikelihoodVal)
+                                {
+                                    maxLikelihoodVal = placeLikelihood.getLikelihood();
+                                    maxLikelihood = placeLikelihood;
+                                }
                             }
+                            if(maxLikelihood == null)
+                            {
+                                return;
+                            }
+                            mPlaceName = maxLikelihood.getPlace().getName();
+                            mPlaceAddress = maxLikelihood.getPlace().getAddress();
+                            mPlaceAttributions = maxLikelihood.getPlace().getAttributions();
+                            mPlaceLatLng = maxLikelihood.getPlace().getLatLng();
                         }
+
+                        markerLatLng = mPlaceLatLng;
+                        markerSnippet = mPlaceAddress;
+                        markerPlaceName = mPlaceName;
+
+                        if (mPlaceAttributions != null) {
+                            markerSnippet = markerSnippet + "\n" + mPlaceAttributions;
+                        }
+                        // Add a marker for the selected place, with an info window
+                        // showing information about that place.
+                        mMap.addMarker(new MarkerOptions()
+                                .title(markerPlaceName)
+                                .position(markerLatLng)
+                                .snippet(markerSnippet));
+
+                        // Position the map's camera at the location of the marker.
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
+                                DEFAULT_ZOOM));
+
+                        String readingId = UUID.randomUUID().toString();
+                        ReadingModel reading = new ReadingModel();
+                        reading.setId(readingId);
+                        reading.setTimestamp(new Date());
+                        reading.setNumDevicesDetected(btDevicesCount);
+                        reading.setLatlng(mPlaceLatLng);
+                        mPlaceAddress.replaceAll("#", "");
+                        mPlaceAddress.replaceAll("$", "");
+                        mPlaceAddress.replaceAll("_", "");
+                        mPlaceAddress.replaceAll(",", "");
+                        reading.setPlaceAddress(mPlaceAddress);
+                        mPlaceName.replaceAll("#", "");
+                        mPlaceName.replaceAll("#", "");
+                        mPlaceName.replaceAll("#", "");
+                        mPlaceName.replaceAll("#", "");
+                        mPlaceName.replaceAll("#", "");
+                        reading.setPlaceName(mPlaceName);
+                        if(trips.get(currentTripID).getTripReadings() == null)
+                        {
+                            trips.get(currentTripID).setTripReadings(new ArrayList<ReadingModel>());
+                        }
+                        trips.get(currentTripID).getTripReadings().add(reading);
+                        writeToFile(ReadingModel.serialize(reading), MapsActivityCurrentPlace.this);
+
+//                        int i = 0;
+//                        mLikelyPlaceNames = new String[count];
+//                        mLikelyPlaceAddresses = new String[count];
+//                        mLikelyPlaceAttributions = new List[count];
+//                        mLikelyPlaceLatLngs = new LatLng[count];
+//
+//                        for (PlaceLikelihood placeLikelihood : likelyPlaces.getPlaceLikelihoods()) {
+//                            // Build a list of likely places to show the user.
+//                            mLikelyPlaceNames[i] = placeLikelihood.getPlace().getName();
+//                            mLikelyPlaceAddresses[i] = placeLikelihood.getPlace().getAddress();
+//                            mLikelyPlaceAttributions[i] = placeLikelihood.getPlace()
+//                                    .getAttributions();
+//                            mLikelyPlaceLatLngs[i] = placeLikelihood.getPlace().getLatLng();
+//
+//                            i++;
+//                            if (i > (count - 1)) {
+//                                break;
+//                            }
+//                        }
 
                         // Show a dialog offering the user the list of likely places, and add a
                         // marker at the selected place.
-                        MapsActivityCurrentPlace.this.openPlacesDialog();
+//                        MapsActivityCurrentPlace.this.openPlacesDialog();
                     } else {
                         Log.e(TAG, "Exception: %s", task.getException());
                     }
