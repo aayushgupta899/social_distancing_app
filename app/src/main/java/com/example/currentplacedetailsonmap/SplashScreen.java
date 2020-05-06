@@ -10,8 +10,7 @@ public class SplashScreen extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Start home activity
-
-        startActivity(new Intent(SplashScreen.this, MapsActivityCurrentPlace.class));
+        startActivity(new Intent(SplashScreen.this, StartingActivity.class));
         // close splash activity
         finish();
     }

@@ -28,4 +28,19 @@
     <string name="invalid_username">Not a valid username</string>
     <string name="invalid_password">Password must be >5 characters</string>
     <string name="login_failed">"Login failed"</string>
+    <string name="starting_greeting">"Hello!</string>
+    <string name="starting_prompt">Please enter a username</string>
+    <string name="starting_username">username</string>
+    <string name="starting_getting_data">Getting data from the server....</string>
+    <string name="button_next">Next</string>
+    <string name="welcome_return_user_greeting">Welcome back,</string>
+    <string name="welcome_new_user_greeting">Welcome,</string>
+    <string name="welcome_new_user_prompt">Please give a few details about yourself</string>
+    <string name="welcome_new_user_occupation">Occupation</string>
+    <string name="welcome_new_user_occupation_hint">eg. Student</string>
+    <string name="welcome_new_user_age">Age</string>
+    <string name="welcome_new_user_gender">Gender</string>
+    <string name="welcome_new_user_gender_hint">M/F/Other</string>
+    <string name="welcome_new_user_condition">Pre-exisiting condtion(s) (if any)</string>
+    <string name="welcome_new_user_condition_hint">NA if not applicable</string>
 </resources>
