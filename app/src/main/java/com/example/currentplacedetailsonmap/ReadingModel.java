@@ -29,11 +29,11 @@ public class ReadingModel {
         this.placeName = placeName;
     }
 
-    public LatLng getLatlng() {
+    public String getLatlng() {
         return latlng;
     }
 
-    public void setLatlng(LatLng latlng) {
+    public void setLatlng(String latlng) {
         this.latlng = latlng;
     }
 
@@ -62,7 +62,7 @@ public class ReadingModel {
     }
     private String id;
     private String placeName;
-    private LatLng latlng;
+    private String latlng;
     private String placeAddress;
     private boolean coughDetected;
     private int numDevicesDetected;
@@ -86,8 +86,7 @@ public class ReadingModel {
         sb.append("#");
         sb.append(m.getPlaceAddress());
         sb.append("#");
-        LatLng l = m.getLatlng();
-        sb.append(l.latitude +","+ l.longitude);
+        sb.append(m.getLatlng());
         sb.append("#");
         sb.append(m.isCoughDetected());
         sb.append("#");
@@ -106,11 +105,11 @@ public class ReadingModel {
         m.setId(sc.next());
         m.setPlaceName(sc.next());
         m.setPlaceAddress(sc.next());
-        String[] latlngString = sc.next().split(",");
-        double latitude = Double.parseDouble(latlngString[0]);
-        double longitude = Double.parseDouble(latlngString[1]);
-        LatLng latlng = new LatLng(latitude, longitude);
-        m.setLatlng(latlng);
+//        String[] latlngString = sc.next().split(",");
+//        double latitude = Double.parseDouble(latlngString[0]);
+//        double longitude = Double.parseDouble(latlngString[1]);
+//        LatLng latlng = new LatLng(latitude, longitude);
+        m.setLatlng(sc.next());
         m.setCoughDetected(sc.nextBoolean());
         m.setNumDevicesDetected(sc.nextInt());
         String ts = sc.next();

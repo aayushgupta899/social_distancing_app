@@ -43,4 +43,23 @@
     <string name="welcome_new_user_gender_hint">M/F/Other</string>
     <string name="welcome_new_user_condition">Pre-exisiting condtion(s) (if any)</string>
     <string name="welcome_new_user_condition_hint">NA if not applicable</string>
+    <string name="welcome_new_user_privacy">Don\'t worry, we won\'t share any identifiable information :)</string>
+    <string name="main_going_somewhere">Going Somewhere?</string>
+    <string name="main_start_trip">Start Trip</string>
+    <string name="maps_trip_active">Trip Active</string>
+    <string name="maps_end_trip">End Trip</string>
+    <string name="end_trip_greeting">Trip Ended!</string>
+    <string name="end_trip_details">Trip details</string>
+    <string name="end_trip_duration">Trip duration</string>
+    <string name="end_trip_number">Number of people in proximity</string>
+    <string name="end_trip_score">Social Distancing Score</string>
+    <string name="end_trip_score_hint">Lesser score is better!</string>
+    <string name="end_trip_places_visited">Places Visited</string>
+    <string name="stats_getting_data">Getting Data from the server....</string>
+    <string name="stats_your_cum_score">Your Cumulative Score</string>
+    <string name="stats_top">You are in the top</string>
+    <string name="stats_age_group">of your age group</string>
+    <string name="stats_gender_group">of your gender group</string>
+    <string name="stats_occupation_group">of your occupation group</string>
+    <string name="stats_condition_group">of people with your medical condition</string>
 </resources>

@@ -1,12 +1,24 @@
 package com.example.currentplacedetailsonmap;
 
+import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public class WelcomeNewUser extends AppCompatActivity {
 
@@ -73,6 +85,37 @@ public class WelcomeNewUser extends AppCompatActivity {
         }
         else
         {
+            OutputStreamWriter outputStreamWriter = null;
+            BufferedWriter bufferedWriter = null;
+            try {
+                outputStreamWriter = new OutputStreamWriter(this.openFileOutput("user.json", Context.MODE_PRIVATE));
+                bufferedWriter = new BufferedWriter(outputStreamWriter);
+                UserModel user = new UserModel();
+                user.setId(UUID.randomUUID().toString());
+                user.setUsername(username);
+                List<TripModel> tripsList = new ArrayList<>();
+                user.setTrips(tripsList);
+                user.setAge(Integer.parseInt(age));
+                user.setGender(gender.toLowerCase());
+                user.setCondition(condition.toLowerCase());
+                user.setOccupation(occupation.toLowerCase());
+                Gson gson = new GsonBuilder().setDateFormat("MMM d, yyyy HH:mm:ss").create();;
+                gson.toJson(user, bufferedWriter);
+            }
+            catch (FileNotFoundException e)
+            {
+                Log.e("WelcomeNewUser", e.getMessage());
+            }
+            finally {
+                try {
+                    if (bufferedWriter != null) bufferedWriter.close();
+                    if (outputStreamWriter != null) outputStreamWriter.close();
+                }
+                catch (IOException e)
+                {
+                    Log.e("WelcomeNewUser", e.getMessage());
+                }
+            }
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra(StartingActivity.USERNAME, username);
             intent.putExtra(WelcomeNewUser.AGE, age);

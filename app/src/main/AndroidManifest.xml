@@ -11,23 +11,28 @@
 
     <application
             android:allowBackup="true"
-            android:icon="@drawable/splash_logo_"
+            android:icon="@drawable/new_splash_logo_"
             android:label="@string/app_name"
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
-        <activity android:name="com.example.currentplacedetailsonmap.MainActivity">
+        <activity android:name=".StatsActivity">
         </activity>
-        <activity android:name="com.example.currentplacedetailsonmap.WelcomeNewUser">
+        <activity android:name=".EndTrip">
         </activity>
-        <activity android:name="com.example.currentplacedetailsonmap.WelcomeReturnUser">
+        <activity android:name=".MainActivity">
         </activity>
-        <activity android:name="com.example.currentplacedetailsonmap.StartingActivity">
+        <activity android:name=".WelcomeNewUser">
+        </activity>
+        <activity android:name=".WelcomeReturnUser">
+        </activity>
+        <activity android:name=".StartingActivity">
         </activity>
         <activity
                 android:name=".SplashScreen"
                 android:theme="@style/SplashTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
+
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
@@ -54,6 +59,7 @@
 
         <service android:name=".BluetoothService"/>
         <service android:name=".ServerFetchService"/>
+        <service android:name=".ServerStatsService"/>
     </application>
 
 </manifest>

@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -60,6 +61,13 @@ public class StartingActivity extends AppCompatActivity {
         this.registerReceiver(receiver, intentFilter);
     }
 
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event)  {
+        if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
+            finish();
+        }
+        return super.onKeyDown(keyCode, event);
+    }
 
     public void onNextButtonFocus(View view)
     {

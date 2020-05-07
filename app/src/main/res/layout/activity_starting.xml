@@ -37,7 +37,7 @@
             app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintHorizontal_bias="0.267"
             app:layout_constraintVertical_bias="0.062"
             android:fontFamily="@font/raleway_medium" android:hint="@string/starting_username"
-            android:textColor="@color/colrTextET"/>
+            android:textColor="@color/colorTextET"/>
     <Button
             android:text="@string/button_next"
             android:layout_width="251dp"

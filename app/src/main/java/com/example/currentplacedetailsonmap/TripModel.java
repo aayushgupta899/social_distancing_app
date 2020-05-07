@@ -13,7 +13,23 @@ public class TripModel {
     private String tripId;
     private Date startTime;
     private Date endTime;
-    private int score;
+    private double score;
+
+    public TripModel()
+    {
+        this.setNumDevices(0);
+    }
+
+    public int getNumDevices() {
+        return numDevices;
+    }
+
+    public void setNumDevices(int numDevices) {
+        this.numDevices = numDevices;
+    }
+
+    private int numDevices;
+
 
     public List<ReadingModel> getTripReadings() {
         return tripReadings;
@@ -47,11 +63,11 @@ public class TripModel {
         this.endTime = endTime;
     }
 
-    public int getScore() {
+    public double getScore() {
         return score;
     }
 
-    public void setScore(int score) {
+    public void setScore(double score) {
         this.score = score;
     }
 

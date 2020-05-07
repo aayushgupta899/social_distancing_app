@@ -9,6 +9,7 @@ import android.os.Bundle;
 
 import android.os.Handler;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -42,10 +43,14 @@ import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest;
 import com.google.android.libraries.places.api.net.FindCurrentPlaceResponse;
 import com.google.android.libraries.places.api.net.PlacesClient;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An activity that displays a map showing the place at the device's current location.
@@ -110,8 +115,16 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     private int crowdThreshold = 1;
     ////////////////////////////////////////////////////////////////////////////////
     Handler handler;
-    HashMap<String, TripModel> trips;
+    TripModel currentTrip;
     String currentTripID;
+    private String username;
+    boolean hasTasks;
+
+    public static final String DURATION = "DURATION";
+    public static final String NUMDEVICES = "NUMDEVICES";
+    public static final String SCORE = "SCORE";
+    public static final String NUMPLACES = "NUMPLACES";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -141,7 +154,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
         IntentFilter filter = new IntentFilter("ServiceBroadcast");
         registerReceiver(receiver, filter);
 
-        trips = new HashMap<>();
         currentTripID = null;
         mPlaceName = null;
         mPlaceAddress = null;
@@ -149,32 +161,137 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
         mPlaceLatLng = null;
         prevPlaceName = null;
 
+        username = getIntent().getStringExtra(StartingActivity.USERNAME);
+        hasTasks = false;
+
+        getLocationPermission();
     }
-    private void writeToFile(String data,Context context) {
+
+    private double calculateScore(TripModel data)
+    {
+        int timesCoughed = 0;
+        int totalDevices = 0;
+        double score = 0.0;
+        for(ReadingModel r : data.getTripReadings())
+        {
+            timesCoughed += r.isCoughDetected() ? 1 : 0;
+            totalDevices += r.getNumDevicesDetected();
+        }
+
+        score = ((double)(4*timesCoughed) + (double)totalDevices)/5;
+        return score;
+    }
+    private void writeToFile(TripModel data, Context context){
+        // TODO assign user score
+        InputStreamReader inputStreamReader= null;
+        BufferedReader bufferedReader = null;
+        BufferedWriter bufferedWriter= null;
+        OutputStreamWriter outputStreamWriter= null;
+        InputStream inputStream = null;
         try {
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(context.openFileOutput("readings.txt", Context.MODE_PRIVATE));
-            outputStreamWriter.write(data+"\n");
-            outputStreamWriter.close();
+            File file = context.getFileStreamPath("user.json");
+            Gson gson = new GsonBuilder().setDateFormat("MMM d, yyyy HH:mm:ss").create();;
+            if(file.exists())
+            {
+                inputStream = context.openFileInput("user.json");
+                if ( inputStream != null ) {
+                    inputStreamReader = new InputStreamReader(inputStream);
+                    bufferedReader = new BufferedReader(inputStreamReader);
+                    UserModel user = gson.fromJson(bufferedReader, new TypeToken<UserModel>(){}.getType());
+                    List<TripModel> tripsList = user.getTrips();
+                    if(tripsList == null)
+                    {
+                        tripsList = new ArrayList<>();
+                    }
+                    tripsList.add(data);
+                    user.setTrips(tripsList);
+                    double sumScore = 0.0;
+                    for(TripModel trip : tripsList)
+                    {
+                        sumScore += trip.getScore();
+                    }
+                    user.setScore(sumScore/tripsList.size());
+                    outputStreamWriter = new OutputStreamWriter(context.openFileOutput("user.json", Context.MODE_PRIVATE));
+                    bufferedWriter = new BufferedWriter(outputStreamWriter);
+                    gson.toJson(user, bufferedWriter);
+                }
+            }
+            else
+            {
+                outputStreamWriter = new OutputStreamWriter(context.openFileOutput("user.json", Context.MODE_PRIVATE));
+                bufferedWriter = new BufferedWriter(outputStreamWriter);
+                UserModel user = new UserModel();
+                user.setId(UUID.randomUUID().toString());
+                user.setUsername(username);
+                List<TripModel> tripsList = new ArrayList<>();
+                tripsList.add(data);
+                user.setTrips(tripsList);
+                user.setScore(data.getScore());
+                gson.toJson(user, bufferedWriter);
+            }
+
+        }
+        catch (FileNotFoundException e) {
+            Log.e(TAG, "File not found: " + e.getMessage());
         }
         catch (IOException e) {
-            Log.e("Exception", "File write failed: " + e.toString());
+            Log.e("Exception", "File write failed: " + e.getMessage());
+        }
+        finally {
+            try
+            {
+                if(bufferedReader != null)
+                {
+                    bufferedReader.close();
+                }
+                if(bufferedWriter != null)
+                {
+                    bufferedWriter.close();
+                }
+                if(outputStreamWriter != null)
+                {
+                    outputStreamWriter.close();
+                }
+                if(inputStreamReader != null)
+                {
+                    inputStreamReader.close();
+                }
+                if(inputStream != null)
+                {
+                    inputStream.close();
+                }
+            }
+            catch (IOException e)
+            {
+                Log.e(TAG, e.getMessage());
+            }
         }
     }
     @Override
     protected  void onResume()
     {
         super.onResume();
-        IntentFilter filter = new IntentFilter("ServiceBroadcast");
-        this.registerReceiver(receiver, filter);
+//        IntentFilter filter = new IntentFilter("ServiceBroadcast");
+//        this.registerReceiver(receiver, filter);
     }
     @Override
     protected void onPause()
     {
         super.onPause();
-        if(receiver !=  null)
-            this.unregisterReceiver(receiver);
+//        if(receiver !=  null)
+//            this.unregisterReceiver(receiver);
     }
-
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event)  {
+        if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
+            handler.removeCallbacks(serviceRunnable);
+            Intent stopTripIntent = new Intent(this, MainActivity.class);
+            stopTripIntent.putExtra(StartingActivity.USERNAME, username);
+            startActivity(stopTripIntent);
+            finish();
+        }
+        return super.onKeyDown(keyCode, event);
+    }
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -203,11 +320,11 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
      * @param menu The options menu.
      * @return Boolean.
      */
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.current_place_menu, menu);
-        return true;
-    }
+//    @Override
+//    public boolean onCreateOptionsMenu(Menu menu) {
+//        getMenuInflater().inflate(R.menu.current_place_menu, menu);
+//        return true;
+//    }
 
     /**
      * Handles a click on the menu option to get a place.
@@ -219,44 +336,90 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.option_get_place) {
             //showCurrentPlace();
-            if(currentTripID != null)
-            {
-                trips.get(currentTripID).setEndTime(new Date());
-                // TODO calculate score;
-                currentTripID = null;
-                handler.removeCallbacks(serviceRunnable);
-                Toast.makeText(this, "Trip Stopped", Toast.LENGTH_SHORT).show();
-            }
-            else
-            {
-                Toast.makeText(this, "No Trips Active", Toast.LENGTH_SHORT).show();
-            }
+//            if(currentTripID != null)
+//            {
+//                trips.get(currentTripID).setEndTime(new Date());
+//                // TODO calculate score;
+//                currentTripID = null;
+//                handler.removeCallbacks(serviceRunnable);
+//                Toast.makeText(this, "Trip Stopped", Toast.LENGTH_SHORT).show();
+//            }
+//            else
+//            {
+//                Toast.makeText(this, "No Trips Active", Toast.LENGTH_SHORT).show();
+//            }
 
         } else if (item.getItemId() == R.id.nearby_devices) {
-            BluetoothAdapter mBtAdapter = BluetoothAdapter.getDefaultAdapter();
-            if (!mBtAdapter.isEnabled()) {
-                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-            }
-            else
-            {
-                String tripID = UUID.randomUUID().toString();
-                TripModel currentTrip = new TripModel();
-                currentTrip.setTripId(tripID);
-                currentTrip.setStartTime(new Date());
-                trips.put(tripID, currentTrip);
-                currentTripID = tripID;
-                handler = new Handler();
-                // Define the code block to be executed
-                // Start the initial runnable task by posting through the handler
-                handler.post(serviceRunnable);
-            }
+//            BluetoothAdapter mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+//            if (!mBtAdapter.isEnabled()) {
+//                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+//                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+//            }
+//            else
+//            {
+//                String tripID = UUID.randomUUID().toString();
+//                TripModel currentTrip = new TripModel();
+//                currentTrip.setTripId(tripID);
+//                currentTrip.setStartTime(new Date());
+//                trips.put(tripID, currentTrip);
+//                currentTripID = tripID;
+//                handler = new Handler();
+//                // Define the code block to be executed
+//                // Start the initial runnable task by posting through the handler
+//                handler.post(serviceRunnable);
+//            }
             // Launch the DeviceListActivity to see devices and do scan
 
 //            startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_SECURE);
         }
         return true;
     }
+
+    public void onEndTripClick(View view)
+    {
+        if(currentTripID != null)
+        {
+            Toast.makeText(this, "Stopping trip...", Toast.LENGTH_SHORT).show();
+            currentTrip.setEndTime(new Date());
+            // TODO calculate score;
+            handler.removeCallbacks(serviceRunnable);
+//            while(hasTasks)
+//            {
+//                try {
+//                    Thread.sleep(1000);
+//                } catch (InterruptedException e) {
+//                    Log.e(TAG, e.getMessage());
+//                }
+//            }
+            double score = calculateScore(currentTrip);
+            currentTrip.setScore(score);
+            long millis = Math.abs(currentTrip.getEndTime().getTime() - currentTrip.getStartTime().getTime());
+            String _duration = String.format("%02d:%02d:%02d",
+                    TimeUnit.MILLISECONDS.toHours(millis),
+                    TimeUnit.MILLISECONDS.toMinutes(millis) -
+                            TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(millis)),
+                    TimeUnit.MILLISECONDS.toSeconds(millis) -
+                            TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis)));
+            String _score = Double.toString(score);
+            String _numDevices = Integer.toString(currentTrip.getNumDevices());
+            String _numPlaces = Integer.toString(currentTrip.getTripReadings().size());
+            writeToFile(currentTrip, MapsActivityCurrentPlace.this);
+//            Toast.makeText(this, "Trip stopped", Toast.LENGTH_SHORT).show();
+            Intent stopTripIntent = new Intent(this, EndTrip.class);
+            stopTripIntent.putExtra(StartingActivity.USERNAME, username);
+            stopTripIntent.putExtra(DURATION, _duration);
+            stopTripIntent.putExtra(NUMDEVICES, _numDevices);
+            stopTripIntent.putExtra(NUMPLACES, _numPlaces);
+            stopTripIntent.putExtra(SCORE, _score);
+            startActivity(stopTripIntent);
+            finish();
+        }
+        else
+        {
+            Toast.makeText(this, "No Trips Active", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -272,10 +435,10 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                         markCurrentPlace();
                     }
                 }
-                View mapsView = findViewById(R.id.map);
-                Snackbar.make(mapsView, Integer.toString(btDevicesCount),
-                        Snackbar.LENGTH_SHORT)
-                        .show();
+//                View mapsView = findViewById(R.id.map);
+//                Snackbar.make(mapsView, Integer.toString(btDevicesCount),
+//                        Snackbar.LENGTH_SHORT)
+//                        .show();
             }
         }
     };
@@ -287,8 +450,9 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
             // Repeat this the same runnable code block again another 2 seconds
             // 'this' is referencing the Runnable object
             Intent serverIntent = new Intent(MapsActivityCurrentPlace.this, BluetoothService.class);
+            hasTasks = true;
             startService(serverIntent);
-            handler.postDelayed(this, 60000);
+            handler.postDelayed(this, 120000);
         }
     };
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -299,10 +463,9 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                 if(resultCode == Activity.RESULT_OK)
                 {
                     String tripID = UUID.randomUUID().toString();
-                    TripModel currentTrip = new TripModel();
+                    currentTrip = new TripModel();
                     currentTrip.setTripId(tripID);
                     currentTrip.setStartTime(new Date());
-                    trips.put(tripID, currentTrip);
                     currentTripID = tripID;
                     handler = new Handler();
                     // Define the code block to be executed
@@ -358,7 +521,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     public void onMapReady(GoogleMap map) {
         mMap = map;
 
-
         // TEST
 //        // Add a marker in Sydney and move the camera
 //        LatLng sydney = new LatLng(-34, 151);
@@ -392,13 +554,32 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
         });
 
         // Prompt the user for permission.
-        getLocationPermission();
+        //getLocationPermission();
 
         // Turn on the My Location layer and the related control on the map.
         updateLocationUI();
 
         // Get the current location of the device and set the position of the map.
         getDeviceLocation();
+
+        //start Trip
+        BluetoothAdapter mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (!mBtAdapter.isEnabled()) {
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        }
+        else
+        {
+            String tripID = UUID.randomUUID().toString();
+            currentTrip = new TripModel();
+            currentTrip.setTripId(tripID);
+            currentTrip.setStartTime(new Date());
+            currentTripID = tripID;
+            handler = new Handler();
+            // Define the code block to be executed
+            // Start the initial runnable task by posting through the handler
+            handler.post(serviceRunnable);
+        }
     }
 
 
@@ -552,32 +733,34 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                                 .snippet(markerSnippet));
 
                         // Position the map's camera at the location of the marker.
-                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
-                                DEFAULT_ZOOM));
+//                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
+////                                DEFAULT_ZOOM));
 
                         String readingId = UUID.randomUUID().toString();
                         ReadingModel reading = new ReadingModel();
                         reading.setId(readingId);
                         reading.setTimestamp(new Date());
                         reading.setNumDevicesDetected(btDevicesCount);
-                        reading.setLatlng(mPlaceLatLng);
-                        mPlaceAddress.replaceAll("#", "");
-                        mPlaceAddress.replaceAll("$", "");
-                        mPlaceAddress.replaceAll("_", "");
-                        mPlaceAddress.replaceAll(",", "");
+                        reading.setLatlng(Double.toString(mPlaceLatLng.latitude)+","+Double.toString(mPlaceLatLng.longitude));
+//                        mPlaceAddress.replaceAll("#", "");
+//                        mPlaceAddress.replaceAll("$", "");
+//                        mPlaceAddress.replaceAll("_", "");
+//                        mPlaceAddress.replaceAll(",", "");
                         reading.setPlaceAddress(mPlaceAddress);
-                        mPlaceName.replaceAll("#", "");
-                        mPlaceName.replaceAll("#", "");
-                        mPlaceName.replaceAll("#", "");
-                        mPlaceName.replaceAll("#", "");
-                        mPlaceName.replaceAll("#", "");
+//                        mPlaceName.replaceAll("#", "");
+//                        mPlaceName.replaceAll("#", "");
+//                        mPlaceName.replaceAll("#", "");
+//                        mPlaceName.replaceAll("#", "");
+//                        mPlaceName.replaceAll("#", "");
                         reading.setPlaceName(mPlaceName);
-                        if(trips.get(currentTripID).getTripReadings() == null)
+                        if(currentTrip.getTripReadings() == null)
                         {
-                            trips.get(currentTripID).setTripReadings(new ArrayList<ReadingModel>());
+                            currentTrip.setTripReadings(new ArrayList<ReadingModel>());
                         }
-                        trips.get(currentTripID).getTripReadings().add(reading);
-                        writeToFile(ReadingModel.serialize(reading), MapsActivityCurrentPlace.this);
+                        currentTrip.getTripReadings().add(reading);
+                        currentTrip.setNumDevices(currentTrip.getNumDevices()+btDevicesCount);
+                        prevPlaceName = mPlaceName;
+                        hasTasks = false;
 
 //                        int i = 0;
 //                        mLikelyPlaceNames = new String[count];

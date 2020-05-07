@@ -1,8 +1,6 @@
 package com.example.currentplacedetailsonmap;
 
-import android.app.Activity;
-import android.app.IntentService;
-import android.app.Service;
+import android.app.*;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
@@ -10,10 +8,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.*;
 import android.os.Process;
 import android.util.Log;
 import android.widget.ArrayAdapter;
+import androidx.core.app.NotificationCompat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,7 @@ public class BluetoothService extends Service {
 //        Message msg = serviceHandler.obtainMessage();
 //        msg.arg1 = startId;
 //        serviceHandler.sendMessage(msg);
+//        setNotificationChannel();
         doDiscovery();
         return Service.START_NOT_STICKY;
     }
@@ -122,6 +124,36 @@ public class BluetoothService extends Service {
         }
     }
 
+    public void setNotificationChannel()
+    {
+        // Create notification default intent.
+        Intent intent = new Intent();
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
+
+        // Create notification builder.
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+
+        // Make notification show big text.
+        NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle();
+        bigTextStyle.setBigContentTitle("Trip active");
+        bigTextStyle.bigText("Trip is using Bluetooth and Location");
+        // Set big text style.
+        builder.setStyle(bigTextStyle);
+        builder.setWhen(System.currentTimeMillis());
+        builder.setSmallIcon(R.drawable.new_splash_logo_);
+        Bitmap largeIconBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.new_splash_logo_);
+        builder.setLargeIcon(largeIconBitmap);
+        // Make the notification max priority.
+        builder.setPriority(Notification.PRIORITY_DEFAULT);
+        // Make head-up notification.
+//        builder.setFullScreenIntent(pendingIntent, true);
+        // Build the notification.
+        Notification notification = builder.build();
+        // Start foreground service.
+        startForeground(1, notification);
+    }
+
+
     /**
      * Start device discover with the BluetoothAdapter
      */
@@ -169,6 +201,7 @@ public class BluetoothService extends Service {
         intent.putExtra(EXTRA_DEVICE_COUNT, mNewDevicesArrayAdapter.getCount());
         // Set result and finish this Activity
         sendBroadcast(intent);
+        stopForeground(true);
         stopSelf();
     }
     /**
@@ -187,8 +220,8 @@ public class BluetoothService extends Service {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 // If it's already paired, skip it, because it's been listed already
                 if (device.getBondState() != BluetoothDevice.BOND_BONDED
-                        && (device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_SMART
-                            || device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH)
+                        //&& (device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.PHONE_SMART
+                         //   || device.getBluetoothClass().getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH)
                         && device.getName() != null
                         )
                 {
