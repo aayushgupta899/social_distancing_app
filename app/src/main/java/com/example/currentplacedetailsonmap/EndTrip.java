@@ -49,6 +49,10 @@ public class EndTrip extends AppCompatActivity {
     }
 
 
+    /**
+     * On click of home button
+     * @param view
+     */
     public void onHomeButtonClick(View view)
     {
         Intent intent = new Intent(this, MainActivity.class);

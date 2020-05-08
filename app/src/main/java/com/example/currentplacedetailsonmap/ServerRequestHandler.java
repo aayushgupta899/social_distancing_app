@@ -15,8 +15,7 @@ import java.net.SocketException;
 
 public class ServerRequestHandler {
 
-    // TODO Change Url
-    public static final String url ="";
+    public static final String url ="http://34.70.250.44:34601/";
     public static int sendHttpPOSTRequest(String route, String data)
     {
         try

@@ -35,6 +35,9 @@ public class ServerStatsService extends IntentService
         performServerTask();
     }
 
+    /**
+     * Get stats from the server
+     */
     public void performServerTask() {
         File file = this.getFileStreamPath("user.json");
         Intent serverStatsIntent = new Intent("ServerStatsReceiver");

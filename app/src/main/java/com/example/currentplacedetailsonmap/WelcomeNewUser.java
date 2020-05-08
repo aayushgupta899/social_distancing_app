@@ -65,6 +65,10 @@ public class WelcomeNewUser extends AppCompatActivity {
         welcomeTextView = findViewById(R.id.welcome_new_greeting_textview);
     }
 
+    /**
+     * Called when Next button is clicked
+     * @param view
+     */
     public void onNextButtonClick(View view) {
 
         occupation = occupationEditText.getText().toString();

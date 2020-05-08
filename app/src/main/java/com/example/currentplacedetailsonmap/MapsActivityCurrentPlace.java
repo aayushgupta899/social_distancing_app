@@ -8,11 +8,13 @@ import android.location.Location;
 import android.os.Bundle;
 
 import android.os.Handler;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -125,6 +127,8 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     public static final String SCORE = "SCORE";
     public static final String NUMPLACES = "NUMPLACES";
 
+    Vibrator vibrator;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -167,6 +171,11 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
         getLocationPermission();
     }
 
+    /**
+     * USed to calculate score
+     * @param data
+     * @return
+     */
     private double calculateScore(TripModel data)
     {
         int timesCoughed = 0;
@@ -181,8 +190,13 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
         score = ((double)(4*timesCoughed) + (double)totalDevices)/5;
         return score;
     }
+
+    /**
+     * Writes to file
+     * @param data
+     * @param context
+     */
     private void writeToFile(TripModel data, Context context){
-        // TODO assign user score
         InputStreamReader inputStreamReader= null;
         BufferedReader bufferedReader = null;
         BufferedWriter bufferedWriter= null;
@@ -315,82 +329,16 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     }
 
     /**
-     * Sets up the options menu.
-     *
-     * @param menu The options menu.
-     * @return Boolean.
+     * Called when the trip ends
+     * @param view
      */
-//    @Override
-//    public boolean onCreateOptionsMenu(Menu menu) {
-//        getMenuInflater().inflate(R.menu.current_place_menu, menu);
-//        return true;
-//    }
-
-    /**
-     * Handles a click on the menu option to get a place.
-     *
-     * @param item The menu item to handle.
-     * @return Boolean.
-     */
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.option_get_place) {
-            //showCurrentPlace();
-//            if(currentTripID != null)
-//            {
-//                trips.get(currentTripID).setEndTime(new Date());
-//                // TODO calculate score;
-//                currentTripID = null;
-//                handler.removeCallbacks(serviceRunnable);
-//                Toast.makeText(this, "Trip Stopped", Toast.LENGTH_SHORT).show();
-//            }
-//            else
-//            {
-//                Toast.makeText(this, "No Trips Active", Toast.LENGTH_SHORT).show();
-//            }
-
-        } else if (item.getItemId() == R.id.nearby_devices) {
-//            BluetoothAdapter mBtAdapter = BluetoothAdapter.getDefaultAdapter();
-//            if (!mBtAdapter.isEnabled()) {
-//                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-//                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-//            }
-//            else
-//            {
-//                String tripID = UUID.randomUUID().toString();
-//                TripModel currentTrip = new TripModel();
-//                currentTrip.setTripId(tripID);
-//                currentTrip.setStartTime(new Date());
-//                trips.put(tripID, currentTrip);
-//                currentTripID = tripID;
-//                handler = new Handler();
-//                // Define the code block to be executed
-//                // Start the initial runnable task by posting through the handler
-//                handler.post(serviceRunnable);
-//            }
-            // Launch the DeviceListActivity to see devices and do scan
-
-//            startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_SECURE);
-        }
-        return true;
-    }
-
     public void onEndTripClick(View view)
     {
+        Toast.makeText(this, "Stopping trip...", Toast.LENGTH_SHORT).show();
         if(currentTripID != null)
         {
-            Toast.makeText(this, "Stopping trip...", Toast.LENGTH_SHORT).show();
             currentTrip.setEndTime(new Date());
-            // TODO calculate score;
             handler.removeCallbacks(serviceRunnable);
-//            while(hasTasks)
-//            {
-//                try {
-//                    Thread.sleep(1000);
-//                } catch (InterruptedException e) {
-//                    Log.e(TAG, e.getMessage());
-//                }
-//            }
             double score = calculateScore(currentTrip);
             currentTrip.setScore(score);
             long millis = Math.abs(currentTrip.getEndTime().getTime() - currentTrip.getStartTime().getTime());
@@ -404,7 +352,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
             String _numDevices = Integer.toString(currentTrip.getNumDevices());
             String _numPlaces = Integer.toString(currentTrip.getTripReadings().size());
             writeToFile(currentTrip, MapsActivityCurrentPlace.this);
-//            Toast.makeText(this, "Trip stopped", Toast.LENGTH_SHORT).show();
             Intent stopTripIntent = new Intent(this, EndTrip.class);
             stopTripIntent.putExtra(StartingActivity.USERNAME, username);
             stopTripIntent.putExtra(DURATION, _duration);
@@ -412,14 +359,19 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
             stopTripIntent.putExtra(NUMPLACES, _numPlaces);
             stopTripIntent.putExtra(SCORE, _score);
             startActivity(stopTripIntent);
-            finish();
         }
         else
         {
-            Toast.makeText(this, "No Trips Active", Toast.LENGTH_SHORT).show();
+            Intent stopTripIntent = new Intent(this, MainActivity.class);
+            stopTripIntent.putExtra(StartingActivity.USERNAME, username);
+            startActivity(stopTripIntent);
         }
+        finish();
     }
 
+    /**
+     * Receiver to receive broadcasts from bluetooth.
+     */
     BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -427,25 +379,28 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
                 btDevicesCount = bundle.getInt(BluetoothService.EXTRA_DEVICE_COUNT);
-                if(btDevicesCount > crowdThreshold)
-                {
+                //if(btDevicesCount > crowdThreshold)
+                //{
                     // add marker
                     if(prevPlaceName == null || !prevPlaceName.equals(mPlaceName))
                     {
+                        vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+                        if (vibrator != null && vibrator.hasVibrator()) {
+                            vibrator.vibrate(500);
+                        }
                         markCurrentPlace();
                     }
-                }
-//                View mapsView = findViewById(R.id.map);
-//                Snackbar.make(mapsView, Integer.toString(btDevicesCount),
-//                        Snackbar.LENGTH_SHORT)
-//                        .show();
+                //}
             }
         }
     };
+
+    /**
+     * Periodically calls the service
+     */
     Runnable serviceRunnable = new Runnable() {
         @Override
         public void run() {
-            // Do something here on the main thread
             Log.d("Handlers", "Called on main thread");
             // Repeat this the same runnable code block again another 2 seconds
             // 'this' is referencing the Runnable object
@@ -455,6 +410,13 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
             handler.postDelayed(this, 120000);
         }
     };
+
+    /**
+     * After permission result for bt
+     * @param requestCode
+     * @param resultCode
+     * @param data
+     */
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         Log.d(TAG, "onActivityResult()");
@@ -468,8 +430,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                     currentTrip.setStartTime(new Date());
                     currentTripID = tripID;
                     handler = new Handler();
-                    // Define the code block to be executed
-                    // Start the initial runnable task by posting through the handler
                     handler.post(serviceRunnable);
                 }
                 else
@@ -477,39 +437,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                     Toast.makeText(this, "Bluetooth is required for this task", Toast.LENGTH_SHORT).show();
                 }
                 break;
-            case REQUEST_CONNECT_DEVICE_SECURE:
-                // When DeviceListActivity returns with a device to connect
-                if (resultCode == Activity.RESULT_OK) {
-                    ////////////////////////////////////////////////////////////////////////////
-                    //////////////////////   WRITE YOUR CODE HERE ! ////////////////////////////
-                    ////////////////////////////////////////////////////////////////////////////
-                    // Example:
-                    btDevicesCount = data.getExtras()
-                            .getInt(DeviceListActivity.EXTRA_DEVICE_COUNT);
-                    Log.d(TAG, "Device number:" + btDevicesCount);
-                    View mapsView = findViewById(R.id.map);
-                    mapsView.post(new Runnable() {
-                        public void run() {
-                            Snackbar.make(findViewById(R.id.map), Integer.toString(btDevicesCount),
-                                    Snackbar.LENGTH_SHORT)
-                                    .show();
-                        }
-                    });
-                    // You can change the address to the number of certain type of devices, or
-                    // other variables you want to use. Remember to change the corresponding
-                    // name at DeviceListActivity.java.
-                }
-                break;
-            case REQUEST_CONNECT_DEVICE_INSECURE:
-                // When DeviceListActivity returns with a device to connect
-                if (resultCode == Activity.RESULT_OK) {
-                    ////////////////////////////////////////////////////////////////////////////
-                    //////////////////////   WRITE YOUR CODE HERE ! ////////////////////////////
-                    ////////////////////////////////////////////////////////////////////////////
-                    // Example:
-                    String address = data.getExtras()
-                            .getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
-                }
         }
     }
 
@@ -520,12 +447,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
     @Override
     public void onMapReady(GoogleMap map) {
         mMap = map;
-
-        // TEST
-//        // Add a marker in Sydney and move the camera
-//        LatLng sydney = new LatLng(-34, 151);
-//        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-//        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
 
         // Use a custom info window adapter to handle multiple lines of text in the
         // info window contents.
@@ -552,9 +473,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                 return infoWindow;
             }
         });
-
-        // Prompt the user for permission.
-        //getLocationPermission();
 
         // Turn on the My Location layer and the related control on the map.
         updateLocationUI();
@@ -688,14 +606,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                 public void onComplete(@NonNull Task<FindCurrentPlaceResponse> task) {
                     if (task.isSuccessful() && task.getResult() != null) {
                         FindCurrentPlaceResponse likelyPlaces = task.getResult();
-
-                        // Set the count, handling cases where less than 5 entries are returned.
-//                        int count;
-//                        if (likelyPlaces.getPlaceLikelihoods().size() < M_MAX_ENTRIES) {
-//                            count = likelyPlaces.getPlaceLikelihoods().size();
-//                        } else {
-//                            count = M_MAX_ENTRIES;
-//                        }
                         if(likelyPlaces.getPlaceLikelihoods().size() > 0)
                         {
                             double maxLikelihoodVal = 0.0;
@@ -732,26 +642,13 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                                 .position(markerLatLng)
                                 .snippet(markerSnippet));
 
-                        // Position the map's camera at the location of the marker.
-//                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
-////                                DEFAULT_ZOOM));
-
                         String readingId = UUID.randomUUID().toString();
                         ReadingModel reading = new ReadingModel();
                         reading.setId(readingId);
                         reading.setTimestamp(new Date());
                         reading.setNumDevicesDetected(btDevicesCount);
                         reading.setLatlng(Double.toString(mPlaceLatLng.latitude)+","+Double.toString(mPlaceLatLng.longitude));
-//                        mPlaceAddress.replaceAll("#", "");
-//                        mPlaceAddress.replaceAll("$", "");
-//                        mPlaceAddress.replaceAll("_", "");
-//                        mPlaceAddress.replaceAll(",", "");
                         reading.setPlaceAddress(mPlaceAddress);
-//                        mPlaceName.replaceAll("#", "");
-//                        mPlaceName.replaceAll("#", "");
-//                        mPlaceName.replaceAll("#", "");
-//                        mPlaceName.replaceAll("#", "");
-//                        mPlaceName.replaceAll("#", "");
                         reading.setPlaceName(mPlaceName);
                         if(currentTrip.getTripReadings() == null)
                         {
@@ -761,30 +658,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                         currentTrip.setNumDevices(currentTrip.getNumDevices()+btDevicesCount);
                         prevPlaceName = mPlaceName;
                         hasTasks = false;
-
-//                        int i = 0;
-//                        mLikelyPlaceNames = new String[count];
-//                        mLikelyPlaceAddresses = new String[count];
-//                        mLikelyPlaceAttributions = new List[count];
-//                        mLikelyPlaceLatLngs = new LatLng[count];
-//
-//                        for (PlaceLikelihood placeLikelihood : likelyPlaces.getPlaceLikelihoods()) {
-//                            // Build a list of likely places to show the user.
-//                            mLikelyPlaceNames[i] = placeLikelihood.getPlace().getName();
-//                            mLikelyPlaceAddresses[i] = placeLikelihood.getPlace().getAddress();
-//                            mLikelyPlaceAttributions[i] = placeLikelihood.getPlace()
-//                                    .getAttributions();
-//                            mLikelyPlaceLatLngs[i] = placeLikelihood.getPlace().getLatLng();
-//
-//                            i++;
-//                            if (i > (count - 1)) {
-//                                break;
-//                            }
-//                        }
-
-                        // Show a dialog offering the user the list of likely places, and add a
-                        // marker at the selected place.
-//                        MapsActivityCurrentPlace.this.openPlacesDialog();
                     } else {
                         Log.e(TAG, "Exception: %s", task.getException());
                     }
@@ -804,44 +677,6 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
             getLocationPermission();
         }
     }
-
-    /**
-     * Displays a form allowing the user to select a place from a list of likely places.
-     */
-    private void openPlacesDialog() {
-        // Ask the user to choose the place where they are now.
-        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                // The "which" argument contains the position of the selected item.
-                markerLatLng = mLikelyPlaceLatLngs[which];
-                markerSnippet = mLikelyPlaceAddresses[which];
-                markerPlaceName = mLikelyPlaceNames[which];
-
-                if (mLikelyPlaceAttributions[which] != null) {
-                    markerSnippet = markerSnippet + "\n" + mLikelyPlaceAttributions[which];
-                }
-
-                // Add a marker for the selected place, with an info window
-                // showing information about that place.
-                mMap.addMarker(new MarkerOptions()
-                        .title(markerPlaceName)
-                        .position(markerLatLng)
-                        .snippet(markerSnippet));
-
-                // Position the map's camera at the location of the marker.
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng,
-                        DEFAULT_ZOOM));
-            }
-        };
-
-        // Display the dialog.
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.pick_place)
-                .setItems(mLikelyPlaceNames, listener)
-                .show();
-    }
-
     /**
      * Updates the map's UI settings based on whether the user has granted location permission.
      */

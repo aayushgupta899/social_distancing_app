@@ -102,11 +102,17 @@ public class StatsActivity extends AppCompatActivity {
                         && conditionStat.length() == 0
                         && genderStat.length() == 0)
                 {
+                    scoreStat = String.format("%.2f", Double.parseDouble(scoreStat));
                     scoreTextView.setText(scoreStat);
                     setVisibility(1);
                 }
                 else
                 {
+                    scoreStat = String.format("%.2f", Double.parseDouble(scoreStat));
+                    ageStat = String.format("%.2f", Double.parseDouble(ageStat));
+                    occupationStat = String.format("%.2f", Double.parseDouble(occupationStat));
+                    genderStat = String.format("%.2f", Double.parseDouble(genderStat));
+                    conditionStat = String.format("%.2f", Double.parseDouble(conditionStat));
                     scoreTextView.setText(scoreStat);
                     ageTextView.setText(ageStat+"%");
                     occupationTextView.setText(occupationStat+"%");

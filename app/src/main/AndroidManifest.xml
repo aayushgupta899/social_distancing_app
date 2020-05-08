@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
             android:allowBackup="true"
@@ -51,11 +52,6 @@
                 android:name=".MapsActivityCurrentPlace"
                 android:label="@string/title_activity_maps">
         </activity>
-        <activity
-                android:name=".DeviceListActivity"
-                android:configChanges="orientation|keyboardHidden"
-                android:label="Scanning..."
-                android:theme="@android:style/Theme.Holo.Dialog"/>
 
         <service android:name=".BluetoothService"/>
         <service android:name=".ServerFetchService"/>

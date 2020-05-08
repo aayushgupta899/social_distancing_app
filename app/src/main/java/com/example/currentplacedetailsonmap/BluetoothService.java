@@ -54,12 +54,6 @@ public class BluetoothService extends Service {
     }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // For each start request, send a message to start a job and deliver the
-        // start ID so we know which request we're stopping when we finish the job
-//        Message msg = serviceHandler.obtainMessage();
-//        msg.arg1 = startId;
-//        serviceHandler.sendMessage(msg);
-//        setNotificationChannel();
         doDiscovery();
         return Service.START_NOT_STICKY;
     }
@@ -86,19 +80,6 @@ public class BluetoothService extends Service {
     @Override
     public void onCreate() {
 
-        // Initialize array adapters. One for already paired devices and
-        // one for newly discovered devices
-        // Start up the thread running the service. Note that we create a
-        // separate thread because the service normally runs in the process's
-        // main thread, which we don't want to block. We also make it
-        // background priority so CPU-intensive work doesn't disrupt our UI.
-//        HandlerThread thread = new HandlerThread("ServiceStartArguments",
-//                Process.THREAD_PRIORITY_BACKGROUND);
-//        thread.start();
-//
-//        // Get the HandlerThread's Looper and use it for our Handler
-//        serviceLooper = thread.getLooper();
-//        serviceHandler = new ServiceHandler(serviceLooper);
         ArrayAdapter<String> pairedDevicesArrayAdapter =
                 new ArrayAdapter<String>(this, R.layout.device_name);
         mNewDevicesArrayAdapter = new ArrayAdapter<String>(this, R.layout.device_name);
@@ -124,45 +105,11 @@ public class BluetoothService extends Service {
         }
     }
 
-    public void setNotificationChannel()
-    {
-        // Create notification default intent.
-        Intent intent = new Intent();
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
-
-        // Create notification builder.
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-
-        // Make notification show big text.
-        NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle();
-        bigTextStyle.setBigContentTitle("Trip active");
-        bigTextStyle.bigText("Trip is using Bluetooth and Location");
-        // Set big text style.
-        builder.setStyle(bigTextStyle);
-        builder.setWhen(System.currentTimeMillis());
-        builder.setSmallIcon(R.drawable.new_splash_logo_);
-        Bitmap largeIconBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.new_splash_logo_);
-        builder.setLargeIcon(largeIconBitmap);
-        // Make the notification max priority.
-        builder.setPriority(Notification.PRIORITY_DEFAULT);
-        // Make head-up notification.
-//        builder.setFullScreenIntent(pendingIntent, true);
-        // Build the notification.
-        Notification notification = builder.build();
-        // Start foreground service.
-        startForeground(1, notification);
-    }
-
-
     /**
      * Start device discover with the BluetoothAdapter
      */
     private void doDiscovery() {
         Log.d(TAG, "doDiscovery()");
-
-        // Indicate scanning in the title
-        // setProgressBarIndeterminateVisibility(true);
-        //setTitle(R.string.scanning);
 
         // If we're already discovering, stop it
         if (mBtAdapter.isDiscovering()) {
@@ -182,17 +129,14 @@ public class BluetoothService extends Service {
         this.unregisterReceiver(mReceiver);
     }
 
+
+    /**
+     * Return new devices
+     */
     private void returnNewDeviceCount() {
         // Cancel discovery because it's costly and we're about to leave
         Log.d(TAG, "returnNewDeviceCount()");
         mBtAdapter.cancelDiscovery();
-
-        ////////////////////////////////////////////////////////////////////////////
-        ///////////////   CRUCIAL PART ! RETURN VALUE SET HERE ! ///////////////////
-        ////////// YOU CAN ALSO MOVE THE FOLLOWING CODE TO OTHER LISTENER //////////
-        ////////////////////////////////////////////////////////////////////////////
-        // For example, you can use mNewDevicesArrayAdapter.getCount() to get the new
-        // bluetooth devices number, or use .getItem(index) to get the device item.
 
         // Create the result Intent and include the MAC address
         Intent intent = new Intent();
@@ -201,7 +145,6 @@ public class BluetoothService extends Service {
         intent.putExtra(EXTRA_DEVICE_COUNT, mNewDevicesArrayAdapter.getCount());
         // Set result and finish this Activity
         sendBroadcast(intent);
-        stopForeground(true);
         stopSelf();
     }
     /**
@@ -227,14 +170,7 @@ public class BluetoothService extends Service {
                 {
                         mNewDevicesArrayAdapter.add(device.getName() + "\n" + device.getAddress());
                 }
-                // When discovery is finished, change the Activity title
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                //setProgressBarIndeterminateVisibility(false);
-                //setTitle(R.string.select_device);
-                if (mNewDevicesArrayAdapter.getCount() == 0) {
-                    //String noDevices = getResources().getText(R.string.none_found).toString();
-                    //mNewDevicesArrayAdapter.add(noDevices);
-                }
                 returnNewDeviceCount();
             }
         }
