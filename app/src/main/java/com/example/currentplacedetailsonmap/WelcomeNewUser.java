@@ -99,7 +99,14 @@ public class WelcomeNewUser extends AppCompatActivity {
                 user.setUsername(username);
                 List<TripModel> tripsList = new ArrayList<>();
                 user.setTrips(tripsList);
-                user.setAge(Integer.parseInt(age));
+                try {
+                    user.setAge(Integer.parseInt(age));
+                }
+                catch (NumberFormatException e)
+                {
+                    Log.e("WelcomeNewUser", "NumberFormatException");
+                    user.setAge(0);
+                }
                 user.setGender(gender.toLowerCase());
                 user.setCondition(condition.toLowerCase());
                 user.setOccupation(occupation.toLowerCase());

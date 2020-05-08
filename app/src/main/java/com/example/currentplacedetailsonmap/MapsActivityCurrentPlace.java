@@ -181,12 +181,14 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
         int timesCoughed = 0;
         int totalDevices = 0;
         double score = 0.0;
-        for(ReadingModel r : data.getTripReadings())
+        if(data.getTripReadings() != null)
         {
-            timesCoughed += r.isCoughDetected() ? 1 : 0;
-            totalDevices += r.getNumDevicesDetected();
+            for(ReadingModel r : data.getTripReadings())
+            {
+                timesCoughed += r.isCoughDetected() ? 1 : 0;
+                totalDevices += r.getNumDevicesDetected();
+            }
         }
-
         score = ((double)(4*timesCoughed) + (double)totalDevices)/5;
         return score;
     }
@@ -350,7 +352,7 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                             TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(millis)));
             String _score = Double.toString(score);
             String _numDevices = Integer.toString(currentTrip.getNumDevices());
-            String _numPlaces = Integer.toString(currentTrip.getTripReadings().size());
+            String _numPlaces = currentTrip.getTripReadings() != null ? Integer.toString(currentTrip.getTripReadings().size()) : "0";
             writeToFile(currentTrip, MapsActivityCurrentPlace.this);
             Intent stopTripIntent = new Intent(this, EndTrip.class);
             stopTripIntent.putExtra(StartingActivity.USERNAME, username);
@@ -435,6 +437,7 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
                 else
                 {
                     Toast.makeText(this, "Bluetooth is required for this task", Toast.LENGTH_SHORT).show();
+                    finish();
                 }
                 break;
         }

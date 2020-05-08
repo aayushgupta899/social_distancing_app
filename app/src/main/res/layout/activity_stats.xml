@@ -132,12 +132,12 @@
             app:layout_constraintVertical_bias="0.036" android:textSize="24sp" android:textAlignment="center"
             android:fontFamily="@font/raleway_semibold" android:textColor="@color/colorTextTV"/>
     <Button
-            android:layout_width="30dp"
-            android:layout_height="30dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:id="@+id/button"
             app:layout_constraintTop_toBottomOf="@+id/stats_congrp_textView"
             app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" app:layout_constraintHorizontal_bias="0.498"
-            app:layout_constraintVertical_bias="0.276" android:background="@drawable/ic_home_24px"
+            app:layout_constraintVertical_bias="0.53" android:background="@drawable/ic_home_24px"
             android:onClick="onHomeButtonClick"/>
 </androidx.constraintlayout.widget.ConstraintLayout>
