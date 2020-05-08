@@ -114,7 +114,7 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
 
     // New Bluetooth Devices Number
     private int btDevicesCount;
-    private int crowdThreshold = 1;
+    private int crowdThreshold = 5;
     ////////////////////////////////////////////////////////////////////////////////
     Handler handler;
     TripModel currentTrip;
@@ -379,18 +379,18 @@ public class MapsActivityCurrentPlace extends AppCompatActivity
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
                 btDevicesCount = bundle.getInt(BluetoothService.EXTRA_DEVICE_COUNT);
-                //if(btDevicesCount > crowdThreshold)
-                //{
-                    // add marker
-                    if(prevPlaceName == null || !prevPlaceName.equals(mPlaceName))
-                    {
-                        vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-                        if (vibrator != null && vibrator.hasVibrator()) {
-                            vibrator.vibrate(500);
-                        }
-                        markCurrentPlace();
+                if(btDevicesCount > crowdThreshold)
+                {
+                    vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+                    if (vibrator != null && vibrator.hasVibrator()) {
+                        vibrator.vibrate(500);
                     }
-                //}
+                }
+                // add marker
+                if(prevPlaceName == null || !prevPlaceName.equals(mPlaceName))
+                {
+                    markCurrentPlace();
+                }
             }
         }
     };
